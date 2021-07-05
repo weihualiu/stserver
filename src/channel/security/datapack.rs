@@ -1,5 +1,5 @@
 use super::models;
-use crate::error::{Error, ErrorKind};
+use crate::error::{ErrorKind, IResult, STError};
 use crate::utils;
 use mysql_async::chrono::{Datelike, Local, Timelike};
 use openssl::symm::{Cipher, Crypter, Mode};
@@ -54,7 +54,7 @@ fn common_pack_core(
     model_x: u8,
     model_y: u8,
     data_type: u8,
-    token: &str,
+    token: &Vec<u8>,
 ) -> Vec<u8> {
     // todo 从配置server读取是否启用混淆. 数据依据toekn找到关联的项目配置信息 \
     //   混淆数据的粒度控制：项目 or API接口
@@ -73,7 +73,7 @@ fn common_pack_core(
     res[17] = model_x as u8;
     res[18] = model_y as u8;
     res[19] = data_type;
-    res[20..60].copy_from_slice(token.as_bytes());
+    res[20..60].copy_from_slice(token.as_slice());
     res[60] = mixed_flag;
     res[61..total_len - 1].copy_from_slice(encrypted_data.as_slice());
     res[total_len - 1] = 0xFE;
@@ -89,8 +89,8 @@ pub fn common_pack(
     data: &Vec<u8>,
     key: &Vec<u8>,
     data_type: u8,
-    token: &str,
-) -> Result<Vec<u8>, Error> {
+    token: &Vec<u8>,
+) -> IResult<Vec<u8>> {
     // 产生model x and y
     let model_x = models::model_rand_choice();
     let mut model_y = model_x;
@@ -112,7 +112,7 @@ pub fn common_pack(
         let res = common_pack_core(&ciphertext, model_x as u8, model_y as u8, data_type, token);
         Ok(res)
     } else {
-        Err(Error::new(ErrorKind::DATATYPE, "data type not matched!"))
+        Err(STError::new(ErrorKind::DATATYPE, "data type not matched!"))
     }
 }
 
@@ -121,14 +121,14 @@ pub fn common_pack(
    data 要解混淆的数据
    key 私钥或者对称密钥 key32 + iv16
 */
-pub fn common_unpack(data: &Vec<u8>) -> Result<DataEntry, Error> {
+pub fn common_unpack(data: &Vec<u8>) -> IResult<DataEntry> {
     if data.is_empty()
         || data[0] != 0xF0
         || data[1] != 0x00
         || data[data.len() - 1] != 0xFE
         || data.len() <= 62
     {
-        return Err(Error::new(ErrorKind::DATA_INVALID, "data check failed!"));
+        return Err(STError::new(ErrorKind::DATA_INVALID, "data check failed!"));
     }
 
     let enc_data_len = utils::u8_array_to_u32(&data[9..13]);
@@ -137,7 +137,10 @@ pub fn common_unpack(data: &Vec<u8>) -> Result<DataEntry, Error> {
     let model_y = data[18];
     let data_type = data[19];
     if (enc_data_len + 62 != data.len() as u32) {
-        return Err(Error::new(ErrorKind::DATA_INVALID, "data len not matched!"));
+        return Err(STError::new(
+            ErrorKind::DATA_INVALID,
+            "data len not matched!",
+        ));
     }
     let token = data[20..60].to_vec();
     let mixed_flag = data[60];
@@ -152,7 +155,7 @@ pub fn common_unpack(data: &Vec<u8>) -> Result<DataEntry, Error> {
         models::model_decrypt(&mut mixed_data, model_x as u32);
 
         if (data_len != mixed_data.len() as u32) {
-            return Err(Error::new(
+            return Err(STError::new(
                 ErrorKind::DATA_UNPACK_OLDDATA_NOMATCH,
                 "old data len not matched!",
             ));
@@ -191,8 +194,7 @@ mod test {
         let data = vec![1, 2, 3, 4, 5, 6];
         let key = vec![20; 48];
         let token = vec![0; 40];
-        let v1 = common_pack(&data, &key, 1, String::from_utf8(token).unwrap().as_str())
-            .unwrap_or(Vec::new());
+        let v1 = common_pack(&data, &key, 1, &token);
         // match common_unpack(&v1) {
         //     Ok(data1) => assert_eq!(data, data1.content),
         //     Err(message) => println!("{}", message),

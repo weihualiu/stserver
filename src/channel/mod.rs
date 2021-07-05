@@ -19,8 +19,8 @@ pub fn tunnel_process(addr: &SocketAddr, data: Vec<u8>) -> Vec<u8> {
         }
     };
     println!("decrypt success!");
-    let mut token = vec![];
-    let mut data_result = vec![];
+    let mut token: Vec<u8> = Vec::new();
+    let mut data_result: Vec<u8> = Vec::new();
     if dataEntry.data_type == 1 {
         data_result = tunnel::tunnel_first(&dataEntry.content);
     } else if dataEntry.data_type == 2 {
@@ -33,10 +33,13 @@ pub fn tunnel_process(addr: &SocketAddr, data: Vec<u8>) -> Vec<u8> {
         let decrypt_data = dataEntry.decrypt();
     }
 
-    datapack::common_pack(
+    match datapack::common_pack(
         &data_result,
         &dataEntry.aes_key,
         dataEntry.data_type,
         &token,
-    );
+    ) {
+        Ok(result) => result,
+        Err(error) => error.to_string().as_bytes().to_vec(),
+    }
 }

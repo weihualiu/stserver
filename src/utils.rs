@@ -1,4 +1,4 @@
-use crate::error::Error;
+use crate::error::{IResult, STError};
 use mysql_async::chrono::{Datelike, Local, Timelike};
 use openssl::rsa::{Padding, Rsa};
 use openssl::symm::{Cipher, Crypter, Mode};
@@ -56,7 +56,7 @@ pub fn timestamp_to_string(v: Vec<u8>) -> String {
     todo!()
 }
 
-pub fn aes_256_cbc(data: &Vec<u8>, key: &Vec<u8>, mode: Mode) -> Result<Vec<u8>, Error> {
+pub fn aes_256_cbc(data: &Vec<u8>, key: &Vec<u8>, mode: Mode) -> IResult<Vec<u8>> {
     let mut encrypter =
         Crypter::new(Cipher::aes_256_cbc(), mode, &key[0..32], Some(&key[32..])).unwrap();
     let block_size = Cipher::aes_256_cbc().block_size();
@@ -67,7 +67,7 @@ pub fn aes_256_cbc(data: &Vec<u8>, key: &Vec<u8>, mode: Mode) -> Result<Vec<u8>,
     Ok(ciphertext)
 }
 
-pub fn rsa_publickey_encrypt(data: &Vec<u8>, publickey: &Vec<u8>) -> Result<Vec<u8>, Error> {
+pub fn rsa_publickey_encrypt(data: &Vec<u8>, publickey: &Vec<u8>) -> IResult<Vec<u8>> {
     let rsa = Rsa::public_key_from_pem(publickey).unwrap();
     let mut encrypted_data: Vec<u8> = vec![0; data.len()];
     let len = rsa
@@ -77,7 +77,7 @@ pub fn rsa_publickey_encrypt(data: &Vec<u8>, publickey: &Vec<u8>) -> Result<Vec<
     Ok(encrypted_data)
 }
 
-pub fn rsa_privatekey_decrypt(data: &Vec<u8>, privatekey: &Vec<u8>) -> Result<Vec<u8>, Error> {
+pub fn rsa_privatekey_decrypt(data: &Vec<u8>, privatekey: &Vec<u8>) -> IResult<Vec<u8>> {
     let rsa = Rsa::private_key_from_pem(privatekey).unwrap();
     let mut encrypted_data: Vec<u8> = vec![0; data.len()];
     let len = rsa

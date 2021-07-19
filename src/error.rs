@@ -1,6 +1,10 @@
-use std::{fmt::{Debug, Display, Formatter}, string::FromUtf8Error};
+use std::{
+    fmt::{Debug, Display, Formatter},
+    string::FromUtf8Error,
+};
 
 use clap::Format;
+use redis::RedisError;
 
 use crate::config::Config;
 
@@ -60,6 +64,8 @@ pub enum ErrorKind {
     OS_POISONERROR,
     OS_FromUtf8Error,
     MYSQL_NO_DATA,
+    REDIS,
+    SERDE_JSON,
 }
 
 impl From<std::io::Error> for Error {
@@ -100,8 +106,26 @@ impl From<std::sync::PoisonError<std::sync::MutexGuard<'_, Config>>> for Error {
 
 impl From<FromUtf8Error> for Error {
     fn from(err: FromUtf8Error) -> Self {
-        Error{
+        Error {
             code: ErrorKind::OS_FromUtf8Error,
+            msg: err.to_string(),
+        }
+    }
+}
+
+impl From<RedisError> for Error {
+    fn from(err: RedisError) -> Self {
+        Error {
+            code: ErrorKind::REDIS,
+            msg: err.to_string(),
+        }
+    }
+}
+
+impl From<serde_json::Error> for Error {
+    fn from(err: serde_json::Error) -> Self {
+        Error{
+            code: ErrorKind::SERDE_JSON,
             msg: err.to_string(),
         }
     }

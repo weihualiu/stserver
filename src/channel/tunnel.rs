@@ -12,7 +12,7 @@ use std::vec;
 
 use rand::Rng;
 
-use crate::{error::{self, Error, ErrorKind}, sm::{SM2, SM3}, store::db::AppClientKey, utils};
+use crate::{error::{self, Error, ErrorKind}, sm::{SM2, SM3}, store::{cache::{Session}, db::AppClientKey}, utils};
 
 /*
    处理协商第一个请求
@@ -24,7 +24,12 @@ pub fn tunnel_first(data: &Vec<u8>) -> error::Result<(Vec<u8>, Vec<u8>)> {
     let id = String::from_utf8(unique_id)?;
     let private_key = match AppClientKey::get_with_app_client(id.as_str())? {
         Some(app_client_key) => app_client_key.prikey.into_bytes(),
-        None => return Err(Error::new(ErrorKind::MYSQL_NO_DATA, "not found app_client_key record"))
+        None => {
+            return Err(Error::new(
+                ErrorKind::MYSQL_NO_DATA,
+                "not found app_client_key record",
+            ))
+        }
     };
     let dec_data = SM2::decrypt(&data[32..].to_vec(), &private_key)?;
     // 生成TOKEN
@@ -37,7 +42,8 @@ pub fn tunnel_first(data: &Vec<u8>) -> error::Result<(Vec<u8>, Vec<u8>)> {
     // todo 查询一个证书
     let cert: Vec<u8> = vec![];
     // 序列化存入缓存服务
-    
+    let session = Session::init(&token, &random_a, &random_b, &mac);
+    session.set()?;
 
     let mut no_sign_data = Vec::new();
     no_sign_data.extend(&random_b);
@@ -53,9 +59,10 @@ pub fn tunnel_first(data: &Vec<u8>) -> error::Result<(Vec<u8>, Vec<u8>)> {
 */
 pub fn tunnel_second() {}
 
+// 生成Token
 fn create_token() -> Vec<u8> {
     // length 40
-    let mut data: Vec<u8> = vec![0;40];
+    let mut data: Vec<u8> = vec![0; 40];
     data[0..32].copy_from_slice(SM3::hash(&utils::current_timestamp()).as_slice());
     let mut rng = rand::thread_rng();
     for i in 0..8 {
@@ -64,10 +71,6 @@ fn create_token() -> Vec<u8> {
     data
 }
 
-fn pre_master_key() {
+fn pre_master_key() {}
 
-}
-
-fn master_key() {
-
-}
+fn master_key() {}

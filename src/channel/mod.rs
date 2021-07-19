@@ -35,7 +35,7 @@ pub fn tunnel_process(addr: &SocketAddr, data: Vec<u8>) -> Vec<u8> {
                 Ok(_data) => _data,
                 Err(err) => vec![10],
             }
-        },
+        }
         Err(err) => {
             match datapack::common_pack(
                 &err.to_vec(),
@@ -48,8 +48,6 @@ pub fn tunnel_process(addr: &SocketAddr, data: Vec<u8>) -> Vec<u8> {
             }
         }
     }
-    
-    
 }
 
 fn process(data_entry: &DataEntry) -> error::Result<(Vec<u8>, Vec<u8>)> {
@@ -66,5 +64,4 @@ fn process(data_entry: &DataEntry) -> error::Result<(Vec<u8>, Vec<u8>)> {
     //     // check dataEntry.token()
     //     let decrypt_data = data_entry.decrypt();
     // }
-
 }

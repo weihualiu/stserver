@@ -48,7 +48,6 @@ impl DataEntry {
         key[self.symmetric_key.len() - 1] = self.model_y as u8;
         SM4::decrypt(&self.content, &key, &key[32..48].to_vec())
     }
-
 }
 
 fn common_pack_core(
@@ -113,10 +112,9 @@ pub fn common_pack(
         let ciphertext = SM4::encrypt(&data, &key_r, &key[32..48].to_vec());
         let res = common_pack_core(&ciphertext, model_x as u8, model_y as u8, data_type, token);
         Ok(res)
-    }else{
+    } else {
         Ok(vec![])
     }
-    
 }
 
 /*
@@ -188,5 +186,4 @@ mod test {
         }
         println!("{}, {}", model_x, model_y);
     }
-
 }

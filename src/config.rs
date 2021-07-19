@@ -1,4 +1,4 @@
-use serde_derive::Deserialize;
+use serde::Deserialize;
 use std::error::Error;
 use std::{
     fs::File,
@@ -23,7 +23,7 @@ pub struct App {
 
 #[derive(Deserialize)]
 pub struct Redis {
-    pub host: Vec<String>,
+    pub url: String,
     pub auth_passwd: String,
 }
 

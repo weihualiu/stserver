@@ -1,11 +1,10 @@
-
 use std::time::Duration;
 
 use redis::{Client, Commands, Connection};
-use serde::{Serialize, Deserialize};
+use serde::{Deserialize, Serialize};
 
-use crate::error::Error;
 use super::mem;
+use crate::error::Error;
 
 #[derive(PartialEq, Debug, Clone, Serialize, Deserialize)]
 pub struct Session {
@@ -16,10 +15,17 @@ pub struct Session {
     pre_master_key: Vec<u8>,
     random_d: Vec<u8>,
     security_key: Vec<u8>,
+    usercert: Vec<u8>,
 }
 
 impl Session {
-    pub fn init(token: &Vec<u8>, random_a: &Vec<u8>, random_b: &Vec<u8>, mac: &Vec<u8>) -> Session {
+    pub fn init(
+        token: &Vec<u8>,
+        random_a: &Vec<u8>,
+        random_b: &Vec<u8>,
+        mac: &Vec<u8>,
+        usercert: &Vec<u8>,
+    ) -> Session {
         Session {
             token: token.to_vec(),
             random_a: random_a.to_vec(),
@@ -28,13 +34,14 @@ impl Session {
             pre_master_key: vec![],
             random_d: vec![],
             security_key: vec![],
+            usercert: usercert.to_vec(),
         }
     }
 
     pub fn get(token: Vec<u8>) -> Result<Session, Error> {
         let mut con = init_connect()?;
-        
-        let session:String = con.get(token)?;
+
+        let session: String = con.get(token)?;
         let str: Session = serde_json::from_str(&session)?;
         Ok(str)
     }
@@ -58,13 +65,11 @@ fn init_connect() -> Result<Connection, Error> {
     Ok(con)
 }
 
-
-
 #[cfg(test)]
 mod test {
-    use std::{time::Duration, vec};
     use super::Session;
     use redis::{Client, Commands};
+    use std::{time::Duration, vec};
 
     #[test]
     fn test_conn() {
@@ -87,14 +92,15 @@ mod test {
 
     #[test]
     fn operator_session() {
-        let session = Session{
-            token: vec![1,2,13],
-            random_a: vec![1,21,3],
-            client_mac: vec![1,2,13],
-            random_b: vec![1,2,35],
-            pre_master_key: vec![1,22,3],
-            random_d: vec![1,2,23,33],
-            security_key: vec![1,2,3,4],
+        let session = Session {
+            token: vec![1, 2, 13],
+            random_a: vec![1, 21, 3],
+            client_mac: vec![1, 2, 13],
+            random_b: vec![1, 2, 35],
+            pre_master_key: vec![1, 22, 3],
+            random_d: vec![1, 2, 23, 33],
+            security_key: vec![1, 2, 3, 4],
+            usercert: vec![],
         };
         let session_str = serde_json::to_string(&session).unwrap();
 

@@ -12,7 +12,15 @@ use std::vec;
 
 use rand::Rng;
 
-use crate::{error::{self, Error, ErrorKind}, sm::{SM2, SM3}, store::{cache::{Session}, db::AppClientKey}, utils};
+use crate::{
+    error::{self, Error, ErrorKind},
+    sm::{SM2, SM3},
+    store::{
+        cache::Session,
+        db::{App, AppClientKey},
+    },
+    utils,
+};
 
 /*
    处理协商第一个请求
@@ -22,8 +30,8 @@ pub fn tunnel_first(data: &Vec<u8>) -> error::Result<(Vec<u8>, Vec<u8>)> {
     let unique_id = data[0..32].to_vec();
     // todo 根据唯一标识查询私钥KEY
     let id = String::from_utf8(unique_id)?;
-    let private_key = match AppClientKey::get_with_app_client(id.as_str())? {
-        Some(app_client_key) => app_client_key.prikey.into_bytes(),
+    let (app_id, private_key) = match AppClientKey::get_with_app_client(id.as_str())? {
+        Some(app_client_key) => (app_client_key.app_id, app_client_key.prikey.unwrap()),
         None => {
             return Err(Error::new(
                 ErrorKind::MYSQL_NO_DATA,
@@ -31,7 +39,7 @@ pub fn tunnel_first(data: &Vec<u8>) -> error::Result<(Vec<u8>, Vec<u8>)> {
             ))
         }
     };
-    let dec_data = SM2::decrypt(&data[32..].to_vec(), &private_key)?;
+    let dec_data = SM2::decrypt(&data[32..].to_vec(), &private_key.clone().into_bytes())?;
     // 生成TOKEN
     let token = create_token();
     // todo randomA Mac存入缓存
@@ -40,15 +48,17 @@ pub fn tunnel_first(data: &Vec<u8>) -> error::Result<(Vec<u8>, Vec<u8>)> {
     // todo create random B
     let random_b: Vec<u8> = vec![0];
     // todo 查询一个证书
-    let cert: Vec<u8> = vec![];
+    let cert = match App::get(app_id)? {
+        Some(app) => app.certs.unwrap(),
+        None => return Err(Error::new(ErrorKind::MYSQL_NO_DATA, "not found app record")),
+    };
     // 序列化存入缓存服务
-    let session = Session::init(&token, &random_a, &random_b, &mac);
-    session.set()?;
+    Session::init(&token, &random_a, &random_b, &mac, &cert).set()?;
 
     let mut no_sign_data = Vec::new();
     no_sign_data.extend(&random_b);
     no_sign_data.extend(&cert);
-    let mut sign_data = SM2::sign(&no_sign_data, &private_key)?;
+    let mut sign_data = SM2::sign(&no_sign_data, &private_key.into_bytes())?;
     sign_data.extend(&random_b);
     sign_data.extend(&cert);
     Ok((sign_data, token))

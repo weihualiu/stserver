@@ -68,7 +68,7 @@ async fn main() -> error::Result<()> {
 
     println!("stserver start......");
 
-    let server = Server::new("0.0.0.0:3443");
+    let server = Server::new();
     server::run(&server).await?;
     Ok(())
 }

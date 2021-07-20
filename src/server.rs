@@ -1,4 +1,5 @@
 use crate::channel;
+use crate::store::mem;
 use crate::utils;
 use libc::perror;
 use openssl::ssl::{SslAcceptor, SslFiletype, SslMethod, SslStream};
@@ -26,12 +27,19 @@ use tokio_rustls::TlsAcceptor;
 
 pub struct Server {
     ipaddr: String,
+    tls_cert: String,
+    tls_key: String,
 }
 
 impl Server {
-    pub fn new(ipaddr: &str) -> Self {
+    pub fn new() -> Self {
+        let config = &*mem::CONFIG.lock().unwrap();
+        let config_app = &config.app.as_ref().unwrap();
+
         Self {
-            ipaddr: String::from(ipaddr),
+            ipaddr: config_app.addr.clone(),
+            tls_key: config_app.tls_key.clone(),
+            tls_cert: config_app.tls_cert.clone(),
         }
     }
 }
@@ -48,12 +56,13 @@ fn load_keys(path: &Path) -> io::Result<Vec<PrivateKey>> {
 
 pub async fn run(server: &Server) -> io::Result<()> {
     let mut config = ServerConfig::new(NoClientAuth::new());
-    let certs = load_certs(Path::new("test/server_cert.pem"))?;
-    let mut keys = load_keys(Path::new("test/server_key.pem"))?;
+    let certs = load_certs(Path::new(server.tls_cert.as_str()))?;
+    let mut keys = load_keys(Path::new(server.tls_key.as_str()))?;
     config
         .set_single_cert(certs, keys.remove(0))
         .map_err(|err| io::Error::new(io::ErrorKind::InvalidInput, err))?;
     let acceptor = TlsAcceptor::from(Arc::new(config));
+    println!("server bind {}", server.ipaddr);
     let listener = TcpListener::bind(server.ipaddr.as_str()).await?;
     println!("stserver bind success!");
     loop {

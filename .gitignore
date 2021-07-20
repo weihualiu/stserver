@@ -18,4 +18,4 @@ Cargo.lock
 .idea
 
 .DS_Store
-/test
+/test/

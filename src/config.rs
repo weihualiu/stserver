@@ -19,6 +19,7 @@ pub struct Config {
 pub struct App {
     pub tls_cert: String,
     pub tls_key: String,
+    pub addr: String,
 }
 
 #[derive(Deserialize)]

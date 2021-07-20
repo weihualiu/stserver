@@ -8,10 +8,12 @@
 */
 
 use lazy_static;
+use mysql::PooledConn;
 use std::collections::HashMap;
 use std::sync::Mutex;
 
 use crate::config::Config;
+use mysql::Pool;
 
 /*
    存储一些临时变量
@@ -37,7 +39,7 @@ lazy_static::lazy_static! {
         let mut m = HashMap::new();
         m
     });
-
     pub static ref CONFIG: Mutex<Config> = Mutex::new(Config::default());
+    pub static ref MYSQL_POOL: Mutex<Option<Pool>> = Mutex::new(None);
 
 }

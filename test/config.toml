@@ -1,6 +1,7 @@
 [app]
 tls_cert = "test/server_cert.pem"
 tls_key = "test/server_key.pem"
+addr = "0.0.0.0:3443"
 
 [redis]
 url = "redis://dev.liuweihua.cn:5607"
@@ -11,3 +12,4 @@ host = "dev.liuweihua.cn"
 port = 5600
 user = "secure_tunnel"
 passwd = "secure_tunnel123"
+

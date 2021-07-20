@@ -1,9 +1,11 @@
 use std::{
     fmt::{Debug, Display, Formatter},
     string::FromUtf8Error,
+    sync::PoisonError,
 };
 
 use clap::Format;
+use mysql::Pool;
 use redis::RedisError;
 
 use crate::config::Config;
@@ -124,8 +126,26 @@ impl From<RedisError> for Error {
 
 impl From<serde_json::Error> for Error {
     fn from(err: serde_json::Error) -> Self {
-        Error{
+        Error {
             code: ErrorKind::SERDE_JSON,
+            msg: err.to_string(),
+        }
+    }
+}
+
+impl From<PoisonError<std::sync::MutexGuard<'_, std::option::Option<Pool>>>> for Error {
+    fn from(err: PoisonError<std::sync::MutexGuard<'_, std::option::Option<Pool>>>) -> Self {
+        Error {
+            code: ErrorKind::MYSQL,
+            msg: err.to_string(),
+        }
+    }
+}
+
+impl From<mysql::UrlError> for Error {
+    fn from(err: mysql::UrlError) -> Self {
+        Error {
+            code: ErrorKind::MYSQL,
             msg: err.to_string(),
         }
     }

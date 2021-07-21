@@ -6,6 +6,7 @@ use std::{
 
 use clap::Format;
 use mysql::Pool;
+use openssl::error::ErrorStack;
 use redis::RedisError;
 
 use crate::config::Config;
@@ -68,6 +69,7 @@ pub enum ErrorKind {
     MYSQL_NO_DATA,
     REDIS,
     SERDE_JSON,
+    ERROR_STACK,
 }
 
 impl From<std::io::Error> for Error {
@@ -146,6 +148,15 @@ impl From<mysql::UrlError> for Error {
     fn from(err: mysql::UrlError) -> Self {
         Error {
             code: ErrorKind::MYSQL,
+            msg: err.to_string(),
+        }
+    }
+}
+
+impl From<ErrorStack> for Error {
+    fn from(err: ErrorStack) -> Self {
+        Error{
+            code: ErrorKind::ERROR_STACK,
             msg: err.to_string(),
         }
     }

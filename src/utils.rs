@@ -1,7 +1,9 @@
-use crate::error::Error;
+use crate::error::{self, Error, ErrorKind};
 use chrono::{Datelike, Local, Timelike};
+use openssl::pkcs12::Pkcs12;
 use openssl::rsa::{Padding, Rsa};
 use openssl::symm::{Cipher, Crypter, Mode};
+use rand::Rng;
 
 trait BytesConvert {
     fn to_u32(&self) -> u32;
@@ -87,8 +89,25 @@ pub fn rsa_privatekey_decrypt(data: &Vec<u8>, privatekey: &Vec<u8>) -> Result<Ve
     Ok(encrypted_data)
 }
 
+pub fn get_random_x509(buff: &[u8], pass: &str) -> error::Result<Vec<u8>> {
+    let pkcs12 = Pkcs12::from_der(buff)?;
+    let parsepkcs12 = pkcs12.parse(pass)?;
+    match parsepkcs12.chain {
+        Some(x509_stack) => {
+            let mut rng = rand::thread_rng();
+            let i = rng.gen_range(0..x509_stack.len() as usize);
+            Ok(x509_stack.get(i).unwrap().to_der()?)
+        }
+        None => Err(Error::new(ErrorKind::ERROR_STACK, "not found cert chain"))
+    }
+}
+
 #[cfg(test)]
 mod test {
+    use std::{fs::File, io::Read};
+
+    use openssl::{x509::X509};
+
     use super::*;
 
     #[test]
@@ -103,5 +122,16 @@ mod test {
     fn current_timestamp1() {
         let v = current_timestamp();
         println!("{:#?}", v);
+    }
+
+    #[test]
+    fn pkcs12() {
+        let mut file = File::open("test/test.p12").unwrap();
+        let mut buff = vec![];
+        file.read_to_end(&mut buff).unwrap();
+
+        let x509_data = get_random_x509(&buff, "123456").unwrap();
+        let x509 = X509::from_der(x509_data.as_slice()).unwrap();
+        println!("public key: {:#?}", x509.public_key().unwrap().public_key_to_pem().unwrap());
     }
 }

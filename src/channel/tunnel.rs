@@ -40,18 +40,17 @@ pub fn tunnel_first(data: &Vec<u8>) -> error::Result<(Vec<u8>, Vec<u8>)> {
         }
     };
     let dec_data = SM2::decrypt(&data[32..].to_vec(), &private_key.clone().into_bytes())?;
-    // 生成TOKEN
     let token = create_token();
-    // todo randomA Mac存入缓存
     let random_a = dec_data[0..32].to_vec();
     let mac = dec_data[32..].to_vec();
-    // todo create random B
     let random_b: Vec<u8> = vec![0];
-    // todo 查询一个证书
-    let cert = match App::get(app_id)? {
+    // query ca cert chain
+    let mut cert = match App::get(app_id)? {
         Some(app) => app.certs.unwrap(),
         None => return Err(Error::new(ErrorKind::MYSQL_NO_DATA, "not found app record")),
     };
+    // x509 format der
+    cert = utils::get_random_x509(cert.as_slice(), "123456")?;
     // 序列化存入缓存服务
     Session::init(&token, &random_a, &random_b, &mac, &cert).set()?;
 
@@ -84,3 +83,7 @@ fn create_token() -> Vec<u8> {
 fn pre_master_key() {}
 
 fn master_key() {}
+
+fn create_random() -> Vec<u8> {
+    todo!()
+}

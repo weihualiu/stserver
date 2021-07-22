@@ -1,4 +1,4 @@
-use std::time::Duration;
+use std::{time::Duration, vec};
 
 use redis::{Client, Commands, Connection};
 use serde::{Deserialize, Serialize};
@@ -15,7 +15,9 @@ pub struct Session {
     pre_master_key: Vec<u8>,
     random_d: Vec<u8>,
     security_key: Vec<u8>,
-    usercert: Vec<u8>,
+    prikey: Vec<u8>,
+    // first request data with hash
+    request_hash: Vec<u8>,
 }
 
 impl Session {
@@ -24,7 +26,8 @@ impl Session {
         random_a: &Vec<u8>,
         random_b: &Vec<u8>,
         mac: &Vec<u8>,
-        usercert: &Vec<u8>,
+        prikey: &Vec<u8>,
+        request_hash: &Vec<u8>,
     ) -> Session {
         Session {
             token: token.to_vec(),
@@ -34,7 +37,8 @@ impl Session {
             pre_master_key: vec![],
             random_d: vec![],
             security_key: vec![],
-            usercert: usercert.to_vec(),
+            prikey: prikey.to_vec(),
+            request_hash: request_hash.to_vec(),
         }
     }
 
@@ -100,7 +104,8 @@ mod test {
             pre_master_key: vec![1, 22, 3],
             random_d: vec![1, 2, 23, 33],
             security_key: vec![1, 2, 3, 4],
-            usercert: vec![],
+            prikey: vec![],
+            request_hash: vec![],
         };
         let session_str = serde_json::to_string(&session).unwrap();
 

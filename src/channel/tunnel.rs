@@ -22,13 +22,15 @@ use crate::{
     utils,
 };
 
+use super::security::SecureAlgo;
+
+
 /*
    处理协商第一个请求
 */
 pub fn tunnel_first(data: &Vec<u8>) -> error::Result<(Vec<u8>, Vec<u8>)> {
     let data_hash = SM3::hash(&data);
     let unique_id = data[0..32].to_vec();
-    // todo 根据唯一标识查询私钥KEY
     let id = String::from_utf8(unique_id)?;
     let (app_id, private_key) = match AppClientKey::get_with_app_client(id.as_str())? {
         Some(app_client_key) => (app_client_key.app_id, app_client_key.prikey.unwrap()),
@@ -43,16 +45,17 @@ pub fn tunnel_first(data: &Vec<u8>) -> error::Result<(Vec<u8>, Vec<u8>)> {
     let token = create_token();
     let random_a = dec_data[0..32].to_vec();
     let mac = dec_data[32..].to_vec();
-    let random_b: Vec<u8> = vec![0];
+    let random_b: Vec<u8> = SecureAlgo::client_random(32);
     // query ca cert chain
     let mut cert = match App::get(app_id)? {
         Some(app) => app.certs.unwrap(),
         None => return Err(Error::new(ErrorKind::MYSQL_NO_DATA, "not found app record")),
     };
+    let random_private_key = utils::prikey_from_pkcs12(cert.as_slice(), "123456")?;
     // x509 format der
     cert = utils::get_random_x509(cert.as_slice(), "123456")?;
-    // 序列化存入缓存服务
-    Session::init(&token, &random_a, &random_b, &mac, &cert).set()?;
+    // write cache service
+    Session::init(&token, &random_a, &random_b, &mac, &random_private_key, &data_hash).set()?;
 
     let mut no_sign_data = Vec::new();
     no_sign_data.extend(&random_b);
@@ -83,7 +86,3 @@ fn create_token() -> Vec<u8> {
 fn pre_master_key() {}
 
 fn master_key() {}
-
-fn create_random() -> Vec<u8> {
-    todo!()
-}

@@ -102,6 +102,12 @@ pub fn get_random_x509(buff: &[u8], pass: &str) -> error::Result<Vec<u8>> {
     }
 }
 
+pub fn prikey_from_pkcs12(buff: &[u8], pass: &str) -> error::Result<Vec<u8>> {
+    let pkcs12 = Pkcs12::from_der(buff)?;
+    let parsepkcs12 = pkcs12.parse(pass)?;
+    Ok(parsepkcs12.pkey.private_key_to_der()?)
+}
+
 #[cfg(test)]
 mod test {
     use std::{fs::File, io::Read};

@@ -98,7 +98,7 @@ pub fn get_random_x509(buff: &[u8], pass: &str) -> error::Result<Vec<u8>> {
             let i = rng.gen_range(0..x509_stack.len() as usize);
             Ok(x509_stack.get(i).unwrap().to_der()?)
         }
-        None => Err(Error::new(ErrorKind::ERROR_STACK, "not found cert chain"))
+        None => Err(Error::new(ErrorKind::ERROR_STACK, "not found cert chain")),
     }
 }
 
@@ -108,11 +108,17 @@ pub fn prikey_from_pkcs12(buff: &[u8], pass: &str) -> error::Result<Vec<u8>> {
     Ok(parsepkcs12.pkey.private_key_to_der()?)
 }
 
+pub fn vec_append(data1: &Vec<u8>, data2: &Vec<u8>) -> Vec<u8> {
+    let mut t = data1.clone();
+    t.extend(data2);
+    t
+}
+
 #[cfg(test)]
 mod test {
     use std::{fs::File, io::Read};
 
-    use openssl::{x509::X509};
+    use openssl::x509::X509;
 
     use super::*;
 
@@ -138,6 +144,9 @@ mod test {
 
         let x509_data = get_random_x509(&buff, "123456").unwrap();
         let x509 = X509::from_der(x509_data.as_slice()).unwrap();
-        println!("public key: {:#?}", x509.public_key().unwrap().public_key_to_pem().unwrap());
+        println!(
+            "public key: {:#?}",
+            x509.public_key().unwrap().public_key_to_pem().unwrap()
+        );
     }
 }

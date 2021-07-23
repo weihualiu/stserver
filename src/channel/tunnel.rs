@@ -10,9 +10,11 @@
 
 use std::vec;
 
+use mysql::time::util;
 use rand::Rng;
 
 use crate::{
+    channel::security::ssl::prf,
     error::{self, Error, ErrorKind},
     sm::{SM2, SM3},
     store::{
@@ -22,8 +24,7 @@ use crate::{
     utils,
 };
 
-use super::security::SecureAlgo;
-
+use super::security::{datapack::DataEntry, ssl};
 
 /*
    处理协商第一个请求
@@ -45,7 +46,7 @@ pub fn tunnel_first(data: &Vec<u8>) -> error::Result<(Vec<u8>, Vec<u8>)> {
     let token = create_token();
     let random_a = dec_data[0..32].to_vec();
     let mac = dec_data[32..].to_vec();
-    let random_b: Vec<u8> = SecureAlgo::client_random(32);
+    let random_b: Vec<u8> = ssl::client_random(32);
     // query ca cert chain
     let mut cert = match App::get(app_id)? {
         Some(app) => app.certs.unwrap(),
@@ -55,7 +56,15 @@ pub fn tunnel_first(data: &Vec<u8>) -> error::Result<(Vec<u8>, Vec<u8>)> {
     // x509 format der
     cert = utils::get_random_x509(cert.as_slice(), "123456")?;
     // write cache service
-    Session::init(&token, &random_a, &random_b, &mac, &random_private_key, &data_hash).set()?;
+    Session::init(
+        &token,
+        &random_a,
+        &random_b,
+        &mac,
+        &random_private_key,
+        &data_hash,
+    )
+    .set()?;
 
     let mut no_sign_data = Vec::new();
     no_sign_data.extend(&random_b);
@@ -69,7 +78,26 @@ pub fn tunnel_first(data: &Vec<u8>) -> error::Result<(Vec<u8>, Vec<u8>)> {
 /*
    处理协商第二个请求
 */
-pub fn tunnel_second() {}
+pub fn tunnel_second(entry: &DataEntry) -> error::Result<Vec<u8>> {
+    let mut session = Session::get(entry.token.clone())?;
+    let data = SM2::decrypt(&entry.content, &session.prikey)?;
+    let hash = SM3::hash(&entry.content);
+    session.random_d = data;
+    let random_c = ssl::change_seed(&session.random_a, &session.client_mac);
+    let pre_master_key = ssl::prf(
+        &session.random_cert,
+        &"master_secret".as_bytes().to_vec(),
+        &utils::vec_append(&random_c, &session.random_b),
+        32,
+    );
+    let master_key = ssl::prf(
+        &pre_master_key,
+        &"master_secret1".as_bytes().to_vec(),
+        &utils::vec_append(&session.random_d, &session.random_b),
+        32,
+    );
+    todo!()
+}
 
 // 生成Token
 fn create_token() -> Vec<u8> {

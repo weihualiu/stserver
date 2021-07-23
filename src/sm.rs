@@ -22,6 +22,8 @@ extern "C" {
     pub fn EVP_MD_CTX_set_pkey_ctx(ctx: *mut EVP_MD_CTX, sctx: *mut EVP_PKEY_CTX) -> c_int;
 }
 
+const SM3_BLOCK_LENGTH: usize = 64;
+
 pub struct SM3 {}
 
 impl SM3 {
@@ -40,6 +42,38 @@ impl SM3 {
         }
 
         res.to_vec()
+    }
+
+    pub fn hmac(data: &Vec<u8>, key: &Vec<u8>) -> Vec<u8> {
+        let mut structured_key = vec![0; SM3_BLOCK_LENGTH];
+        if key.len() > SM3_BLOCK_LENGTH {
+            let sm3_key = SM3::hash(key);
+            structured_key[0..sm3_key.len()].copy_from_slice(sm3_key.as_slice());
+        } else {
+            structured_key[0..key.len()].copy_from_slice(key.as_slice());
+        }
+        let mut ipad: Vec<u8> = vec![0; SM3_BLOCK_LENGTH];
+        let mut opad: Vec<u8> = vec![0; SM3_BLOCK_LENGTH];
+        for i in 0..SM3_BLOCK_LENGTH {
+            ipad[i] = 0x36;
+            opad[i] = 0x5c;
+        }
+        let mut ipad_key: Vec<u8> = vec![0; SM3_BLOCK_LENGTH];
+        for i in 0..SM3_BLOCK_LENGTH {
+            ipad_key[i] = structured_key[i] ^ ipad[i];
+        }
+        let mut opad_key: Vec<u8> = vec![0; SM3_BLOCK_LENGTH];
+        for i in 0..SM3_BLOCK_LENGTH {
+            opad_key[i] = structured_key[i] ^ opad[i];
+        }
+        let mut t3 = vec![];
+        t3.extend(ipad_key);
+        t3.extend(data);
+        let t4 = SM3::hash(&t3);
+        let mut t6 = vec![];
+        t6.extend(opad_key);
+        t6.extend(t4);
+        SM3::hash(&t6)
     }
 }
 

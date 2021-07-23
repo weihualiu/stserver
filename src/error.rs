@@ -155,7 +155,7 @@ impl From<mysql::UrlError> for Error {
 
 impl From<ErrorStack> for Error {
     fn from(err: ErrorStack) -> Self {
-        Error{
+        Error {
             code: ErrorKind::ERROR_STACK,
             msg: err.to_string(),
         }

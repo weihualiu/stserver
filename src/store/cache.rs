@@ -4,20 +4,27 @@ use redis::{Client, Commands, Connection};
 use serde::{Deserialize, Serialize};
 
 use super::mem;
-use crate::error::Error;
+use crate::{
+    error::{Error, Result},
+    sm::SM2,
+};
 
 #[derive(PartialEq, Debug, Clone, Serialize, Deserialize)]
 pub struct Session {
-    token: Vec<u8>,
-    random_a: Vec<u8>,
-    client_mac: Vec<u8>,
-    random_b: Vec<u8>,
-    pre_master_key: Vec<u8>,
-    random_d: Vec<u8>,
-    security_key: Vec<u8>,
-    prikey: Vec<u8>,
+    pub token: Vec<u8>,
+    pub random_a: Vec<u8>,
+    pub client_mac: Vec<u8>,
+    pub random_b: Vec<u8>,
+    pub pre_master_key: Vec<u8>,
+    pub random_d: Vec<u8>,
+    // 客户端预置公钥对应私钥
+    pub security_key: Vec<u8>,
+    // 给客户端随机分配的证书
+    pub random_cert: Vec<u8>,
+    // 多证书公用私钥
+    pub prikey: Vec<u8>,
     // first request data with hash
-    request_hash: Vec<u8>,
+    pub request_hash: Vec<u8>,
 }
 
 impl Session {
@@ -39,10 +46,11 @@ impl Session {
             security_key: vec![],
             prikey: prikey.to_vec(),
             request_hash: request_hash.to_vec(),
+            random_cert: vec![],
         }
     }
 
-    pub fn get(token: Vec<u8>) -> Result<Session, Error> {
+    pub fn get(token: Vec<u8>) -> Result<Session> {
         let mut con = init_connect()?;
 
         let session: String = con.get(token)?;
@@ -50,7 +58,7 @@ impl Session {
         Ok(str)
     }
 
-    pub fn set(&self) -> Result<(), Error> {
+    pub fn set(&self) -> Result<()> {
         let mut conn = init_connect()?;
         let session = serde_json::to_string(&self)?;
         conn.set(self.token.clone(), session)?;
@@ -59,7 +67,7 @@ impl Session {
     }
 }
 
-fn init_connect() -> Result<Connection, Error> {
+fn init_connect() -> Result<Connection> {
     let config = &*mem::CONFIG.lock()?;
     let redis_url = &config.redis.as_ref().unwrap().url;
     let client = Client::open(redis_url.as_str())?;
@@ -106,6 +114,7 @@ mod test {
             security_key: vec![1, 2, 3, 4],
             prikey: vec![],
             request_hash: vec![],
+            random_cert: vec![],
         };
         let session_str = serde_json::to_string(&session).unwrap();
 

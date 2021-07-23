@@ -11,7 +11,7 @@ openssl="0.10.3"
 rand="0.8.3"
 tokio = { version = "1", features = ["full"] }
 mysql="21.0.0"
-redis = { version = "0.20.1", features = [ "cluster", "tokio-comp"] }
+redis = { version = "0.21", features = [ "cluster", "tokio-comp"] }
 lazy_static = "1.4.0"
 tokio-rustls = "0.22.0"
 openssl-sys = "0.9"

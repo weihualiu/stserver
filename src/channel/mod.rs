@@ -53,15 +53,11 @@ pub fn tunnel_process(addr: &SocketAddr, data: Vec<u8>) -> Vec<u8> {
 fn process(data_entry: &DataEntry) -> error::Result<(Vec<u8>, Vec<u8>)> {
     if data_entry.data_type == 1 {
         return tunnel::tunnel_first(&data_entry.content);
+    } else if data_entry.data_type == 2 {
+        return Ok((
+            tunnel::tunnel_second(&data_entry)?,
+            data_entry.token.clone(),
+        ));
     }
     Ok((vec![], vec![]))
-    // } else if data_entry.data_type == 2 {
-    //     token = data_entry.token.clone();
-    //     // check dataEntry.token()
-    //     let decrypt_data = data_entry.decrypt();
-    // } else {
-    //     token = data_entry.token.clone();
-    //     // check dataEntry.token()
-    //     let decrypt_data = data_entry.decrypt();
-    // }
 }

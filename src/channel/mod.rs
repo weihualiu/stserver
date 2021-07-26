@@ -15,7 +15,7 @@ use self::security::datapack::DataEntry;
 */
 pub fn tunnel_process(addr: &SocketAddr, data: Vec<u8>) -> Vec<u8> {
     println!("{:#?}", addr);
-    let data_entry = match datapack::common_unpack(&data) {
+    let mut data_entry = match datapack::common_unpack(&data) {
         Ok(data_entry) => data_entry,
         Err(msg) => {
             println!("data unpack error: {:?}", msg);
@@ -24,7 +24,7 @@ pub fn tunnel_process(addr: &SocketAddr, data: Vec<u8>) -> Vec<u8> {
     };
     println!("decrypt success!");
 
-    match process(&data_entry) {
+    match process(&mut data_entry) {
         Ok((data, token)) => {
             match datapack::common_pack(
                 &data,
@@ -50,14 +50,12 @@ pub fn tunnel_process(addr: &SocketAddr, data: Vec<u8>) -> Vec<u8> {
     }
 }
 
-fn process(data_entry: &DataEntry) -> error::Result<(Vec<u8>, Vec<u8>)> {
+fn process(data_entry: &mut DataEntry) -> error::Result<(Vec<u8>, Vec<u8>)> {
     if data_entry.data_type == 1 {
         return tunnel::tunnel_first(&data_entry.content);
     } else if data_entry.data_type == 2 {
-        return Ok((
-            tunnel::tunnel_second(&data_entry)?,
-            data_entry.token.clone(),
-        ));
+        return Ok((tunnel::tunnel_second(data_entry)?, data_entry.token.clone()));
+    } else {
     }
     Ok((vec![], vec![]))
 }

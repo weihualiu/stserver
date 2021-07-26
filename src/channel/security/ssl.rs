@@ -3,7 +3,7 @@ use openssl::hash::{Hasher, MessageDigest};
 use rand::Rng;
 use std::{time::SystemTime, vec};
 
-use crate::sm::SM3;
+use crate::{sm::SM3, utils};
 
 pub fn client_random(len: usize) -> Vec<u8> {
     let mut data: Vec<u8> = vec![0; len];
@@ -198,4 +198,16 @@ mod test {
         let result = prf(&secret, &label, &seed, length);
         assert_eq!(result, actullay);
     }
+}
+
+// 生成Token
+pub fn create_token() -> Vec<u8> {
+    // length 40
+    let mut data: Vec<u8> = vec![0; 40];
+    data[0..32].copy_from_slice(SM3::hash(&utils::current_timestamp()).as_slice());
+    let mut rng = rand::thread_rng();
+    for i in 0..8 {
+        data[32 + i] = rng.gen_range(0..254);
+    }
+    data
 }

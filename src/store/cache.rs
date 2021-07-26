@@ -25,6 +25,8 @@ pub struct Session {
     pub prikey: Vec<u8>,
     // first request data with hash
     pub request_hash: Vec<u8>,
+    // 协商出的对称密钥
+    pub encrypt_key: Vec<u8>,
 }
 
 impl Session {
@@ -47,6 +49,7 @@ impl Session {
             prikey: prikey.to_vec(),
             request_hash: request_hash.to_vec(),
             random_cert: vec![],
+            encrypt_key: vec![],
         }
     }
 
@@ -75,55 +78,4 @@ fn init_connect() -> Result<Connection> {
     con.set_read_timeout(Some(Duration::new(50, 0)))?;
     con.set_write_timeout(Some(Duration::new(50, 0)))?;
     Ok(con)
-}
-
-#[cfg(test)]
-mod test {
-    use super::Session;
-    use redis::{Client, Commands};
-    use std::{time::Duration, vec};
-
-    #[test]
-    fn test_conn() {
-        let client = Client::open("redis://dev.liuweihua.cn:5607/").unwrap();
-        let mut con = client.get_connection().unwrap();
-        con.set_read_timeout(Some(Duration::new(50, 0))).unwrap();
-        con.set_write_timeout(Some(Duration::new(50, 0))).unwrap();
-
-        let _: () = con.set("key1", b"foo").unwrap();
-        let x: String = redis::cmd("SET")
-            .arg("key1")
-            .arg("你好")
-            .query(&mut con)
-            .unwrap();
-        println!("x={}", x);
-        let _: () = con.set("test", "test_data").unwrap();
-        let _: () = con.set("key1", "哈哈").unwrap();
-        let _: () = con.set("key2", "haha").unwrap();
-    }
-
-    #[test]
-    fn operator_session() {
-        let session = Session {
-            token: vec![1, 2, 13],
-            random_a: vec![1, 21, 3],
-            client_mac: vec![1, 2, 13],
-            random_b: vec![1, 2, 35],
-            pre_master_key: vec![1, 22, 3],
-            random_d: vec![1, 2, 23, 33],
-            security_key: vec![1, 2, 3, 4],
-            prikey: vec![],
-            request_hash: vec![],
-            random_cert: vec![],
-        };
-        let session_str = serde_json::to_string(&session).unwrap();
-
-        let client = Client::open("redis://dev.liuweihua.cn:5607/").unwrap();
-        let mut con = client.get_connection().unwrap();
-
-        let _: () = con.set("session", &session_str).unwrap();
-        let result: String = con.get("session").unwrap();
-        let session_res = serde_json::from_str(&result).unwrap();
-        assert_eq!(session, session_res);
-    }
 }

@@ -72,6 +72,7 @@ pub async fn run(server: &Server) -> io::Result<()> {
         let fut = async move {
             let mut stream = acceptor.accept(stream).await?;
             let (mut reader, mut writer) = split(stream);
+            // todo 增加主动发起数据同步
             let (tx, rx): (Sender<Vec<u8>>, Receiver<Vec<u8>>) = mpsc::channel();
             read(tx, reader, peer_addr);
             write(rx, writer);

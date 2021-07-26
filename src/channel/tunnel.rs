@@ -8,13 +8,7 @@
    3
 */
 
-use std::vec;
-
-use mysql::time::util;
-use rand::Rng;
-
 use crate::{
-    channel::security::ssl::prf,
     error::{self, Error, ErrorKind},
     sm::{SM2, SM3},
     store::{
@@ -43,7 +37,7 @@ pub fn tunnel_first(data: &Vec<u8>) -> error::Result<(Vec<u8>, Vec<u8>)> {
         }
     };
     let dec_data = SM2::decrypt(&data[32..].to_vec(), &private_key.clone().into_bytes())?;
-    let token = create_token();
+    let token = ssl::create_token();
     let random_a = dec_data[0..32].to_vec();
     let mac = dec_data[32..].to_vec();
     let random_b: Vec<u8> = ssl::client_random(32);
@@ -78,7 +72,7 @@ pub fn tunnel_first(data: &Vec<u8>) -> error::Result<(Vec<u8>, Vec<u8>)> {
 /*
    处理协商第二个请求
 */
-pub fn tunnel_second(entry: &DataEntry) -> error::Result<Vec<u8>> {
+pub fn tunnel_second(entry: &mut DataEntry) -> error::Result<Vec<u8>> {
     let mut session = Session::get(entry.token.clone())?;
     let data = SM2::decrypt(&entry.content, &session.prikey)?;
     let hash = SM3::hash(&entry.content);
@@ -90,27 +84,23 @@ pub fn tunnel_second(entry: &DataEntry) -> error::Result<Vec<u8>> {
         &utils::vec_append(&random_c, &session.random_b),
         32,
     );
+    session.pre_master_key = pre_master_key.clone();
     let master_key = ssl::prf(
         &pre_master_key,
         &"master_secret1".as_bytes().to_vec(),
         &utils::vec_append(&session.random_d, &session.random_b),
         32,
     );
-    todo!()
+    let key1 = ssl::prf(
+        &master_key,
+        &"key_extension".as_bytes().to_vec(),
+        &utils::vec_append(&session.random_d, &session.random_b),
+        32,
+    );
+    let session_encrypt_key = ssl::key(&key1);
+    session.encrypt_key = session_encrypt_key.clone();
+    entry.symmetric_key = session_encrypt_key.clone();
+    let response = utils::vec_append(&session.request_hash, &hash);
+
+    Ok(response)
 }
-
-// 生成Token
-fn create_token() -> Vec<u8> {
-    // length 40
-    let mut data: Vec<u8> = vec![0; 40];
-    data[0..32].copy_from_slice(SM3::hash(&utils::current_timestamp()).as_slice());
-    let mut rng = rand::thread_rng();
-    for i in 0..8 {
-        data[32 + i] = rng.gen_range(0..254);
-    }
-    data
-}
-
-fn pre_master_key() {}
-
-fn master_key() {}
